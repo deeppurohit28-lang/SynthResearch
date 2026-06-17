@@ -1,8 +1,15 @@
 import json
-import anthropic
+import google.generativeai as genai
 from config import settings
 from utils.prompt_loader import load_prompt
 from validators.persona_validator import validate_personas
+
+_SAFETY_SETTINGS = [
+    {"category": "HARM_CATEGORY_HARASSMENT",        "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH",        "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",  "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT",  "threshold": "BLOCK_NONE"},
+]
 
 
 def _extract_json(text: str) -> list:
@@ -20,8 +27,12 @@ async def run_agent1(intake: dict) -> dict:
     Generate N personas from intake context.
     Returns {"personas": [...], "tokens_used": int, "input_tokens": int, "output_tokens": int}
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     system_prompt = load_prompt("agent1_persona")
+    model = genai.GenerativeModel(
+        model_name=settings.AGENT1_MODEL,
+        system_instruction=system_prompt,
+        safety_settings=_SAFETY_SETTINGS,
+    )
 
     user_prompt = (
         f"Product description: {intake['product_description']}\n"
@@ -39,17 +50,18 @@ async def run_agent1(intake: dict) -> dict:
         if attempt > 0:
             prompt += f"\n\nPrevious attempt failed validation: {last_error}. Fix these issues and return valid JSON."
 
-        response = await client.messages.create(
-            model=settings.AGENT1_MODEL,
-            max_tokens=settings.AGENT1_MAX_TOKENS,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=settings.AGENT1_MAX_TOKENS,
+            ),
         )
 
         if settings.ENABLE_DEBUG_LOGGING:
-            print(f"[Agent 1] attempt={attempt+1} input={response.usage.input_tokens} output={response.usage.output_tokens}")
+            meta = response.usage_metadata
+            print(f"[Agent 1] attempt={attempt+1} input={meta.prompt_token_count} output={meta.candidates_token_count}")
 
-        raw = response.content[0].text
+        raw = response.text
 
         try:
             personas = _extract_json(raw)
@@ -65,11 +77,12 @@ async def run_agent1(intake: dict) -> dict:
             print(f"[Agent 1] validation errors: {errors}")
 
         if not errors:
+            meta = response.usage_metadata
             return {
-                "personas": personas,
-                "tokens_used": response.usage.input_tokens + response.usage.output_tokens,
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
+                "personas":      personas,
+                "tokens_used":   meta.total_token_count,
+                "input_tokens":  meta.prompt_token_count,
+                "output_tokens": meta.candidates_token_count,
             }
 
         last_error = "; ".join(errors)
@@ -84,8 +97,12 @@ async def regenerate_one_persona(intake: dict, existing_personas: list) -> dict:
     Generate one replacement persona that complements the existing set (Gate 1 regenerate).
     Returns {"persona": {...}, "tokens_used": int, "input_tokens": int, "output_tokens": int}
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     system_prompt = load_prompt("agent1_persona")
+    model = genai.GenerativeModel(
+        model_name=settings.AGENT1_MODEL,
+        system_instruction=system_prompt,
+        safety_settings=_SAFETY_SETTINGS,
+    )
 
     existing_summary = "\n".join(
         f"- {p.get('name')}: {p.get('role')} "
@@ -112,17 +129,18 @@ async def regenerate_one_persona(intake: dict, existing_personas: list) -> dict:
         if attempt > 0:
             prompt += f"\n\nPrevious attempt failed validation: {last_error}. Fix and return valid JSON."
 
-        response = await client.messages.create(
-            model=settings.AGENT1_MODEL,
-            max_tokens=settings.AGENT1_MAX_TOKENS,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=settings.AGENT1_MAX_TOKENS,
+            ),
         )
 
         if settings.ENABLE_DEBUG_LOGGING:
-            print(f"[Agent 1 regen] attempt={attempt+1} input={response.usage.input_tokens}")
+            meta = response.usage_metadata
+            print(f"[Agent 1 regen] attempt={attempt+1} input={meta.prompt_token_count}")
 
-        raw = response.content[0].text
+        raw = response.text
 
         try:
             result = _extract_json(raw)
@@ -141,11 +159,12 @@ async def regenerate_one_persona(intake: dict, existing_personas: list) -> dict:
 
         errors = validate_personas(personas, 1)
         if not errors:
+            meta = response.usage_metadata
             return {
-                "persona":      personas[0],
-                "tokens_used":  response.usage.input_tokens + response.usage.output_tokens,
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
+                "persona":       personas[0],
+                "tokens_used":   meta.total_token_count,
+                "input_tokens":  meta.prompt_token_count,
+                "output_tokens": meta.candidates_token_count,
             }
 
         last_error = "; ".join(errors)

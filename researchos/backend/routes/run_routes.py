@@ -21,12 +21,6 @@ from utils.cost import calculate_cost, estimate_run_cost
 router = APIRouter()
 
 
-# ── Helper ───────────────────────────────────────────────────────
-
-def _is_haiku(model: str) -> bool:
-    return "haiku" in model.lower()
-
-
 # ── POST /run/create ─────────────────────────────────────────────
 
 @router.post("/run/create")
@@ -71,7 +65,6 @@ async def generate_personas(run_id: str, request: PersonasRequest):
         cost_usd = calculate_cost(
             result["input_tokens"],
             result["output_tokens"],
-            is_haiku=_is_haiku(settings.AGENT1_MODEL),
         )
 
         await asyncio.to_thread(db.save_personas, run_id, result["personas"], latency_ms, cost_usd)
@@ -112,7 +105,6 @@ async def generate_guide(run_id: str, request: GuideRequest):
         cost_usd = calculate_cost(
             result["input_tokens"],
             result["output_tokens"],
-            is_haiku=_is_haiku(settings.AGENT2_MODEL),
         )
 
         await asyncio.to_thread(db.save_guide, run_id, result["guide"], latency_ms, cost_usd)
@@ -155,7 +147,6 @@ async def simulate_interviews(run_id: str, request: SimulateRequest):
         cost_usd = calculate_cost(
             result["input_tokens"],
             result["output_tokens"],
-            is_haiku=_is_haiku(settings.AGENT3_MODEL),
         )
 
         await asyncio.to_thread(db.save_transcripts, run_id, result["transcripts"], latency_ms, cost_usd)
@@ -198,7 +189,6 @@ async def synthesise(run_id: str, request: SynthesiseRequest):
         cost_usd = calculate_cost(
             result["input_tokens"],
             result["output_tokens"],
-            is_haiku=_is_haiku(settings.AGENT4_MODEL),
         )
 
         # Sort themes by frequency descending (US-06 — enforce even if model skips ordering)
@@ -260,7 +250,6 @@ async def regenerate_persona(run_id: str, request: RegeneratePersonaRequest):
         cost_usd = calculate_cost(
             result["input_tokens"],
             result["output_tokens"],
-            is_haiku=_is_haiku(settings.AGENT1_MODEL),
         )
 
         return {
@@ -302,7 +291,6 @@ async def regenerate_question(run_id: str, request: RegenerateQuestionRequest):
         cost_usd = calculate_cost(
             result["input_tokens"],
             result["output_tokens"],
-            is_haiku=_is_haiku(settings.AGENT2_MODEL),
         )
 
         return {
@@ -342,7 +330,6 @@ async def regenerate_transcript(run_id: str, request: RegenerateTranscriptReques
         cost_usd = calculate_cost(
             result["input_tokens"],
             result["output_tokens"],
-            is_haiku=_is_haiku(settings.AGENT3_MODEL),
         )
 
         return {

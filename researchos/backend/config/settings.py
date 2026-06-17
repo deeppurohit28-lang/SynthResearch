@@ -4,17 +4,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Secrets ─────────────────────────────────────────────────────
-ANTHROPIC_API_KEY    = os.getenv("ANTHROPIC_API_KEY")
+GOOGLE_API_KEY       = os.getenv("GOOGLE_API_KEY")
 SUPABASE_URL         = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 ENVIRONMENT          = os.getenv("ENVIRONMENT", "development")
 FRONTEND_URL         = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 # ── Model selection per agent ────────────────────────────────────
-AGENT1_MODEL = "claude-sonnet-4-6"           # persona generation
-AGENT2_MODEL = "claude-sonnet-4-6"           # interview guide
-AGENT3_MODEL = "claude-haiku-4-5-20251001"   # simulation — one bundled call per persona
-AGENT4_MODEL = "claude-sonnet-4-6"           # synthesis — highest value output
+AGENT1_MODEL = "gemini-3.1-pro-preview"   # persona generation
+AGENT2_MODEL = "gemini-3.1-pro-preview"   # interview guide
+AGENT3_MODEL = "gemini-3.1-pro-preview"   # simulation — one bundled call per persona
+AGENT4_MODEL = "gemini-3.1-pro-preview"   # synthesis — highest value output
 
 # ── Max tokens per agent ─────────────────────────────────────────
 AGENT1_MAX_TOKENS = 4096
@@ -50,10 +50,9 @@ MAX_RETRY_ATTEMPTS       = 2
 AGENT3_TIMEOUT_SECONDS   = 90
 
 # ── Cost estimation (for pre-run display) ────────────────────────
-COST_PER_1K_INPUT_TOKENS_SONNET  = 0.003
-COST_PER_1K_OUTPUT_TOKENS_SONNET = 0.015
-COST_PER_1K_INPUT_TOKENS_HAIKU   = 0.00025
-COST_PER_1K_OUTPUT_TOKENS_HAIKU  = 0.00125
+# Gemini 3.1 Pro Preview pricing — verify at ai.google.dev/pricing before deploy
+COST_PER_1K_INPUT_TOKENS  = 0.00125   # ~$1.25 / 1M input tokens (estimate)
+COST_PER_1K_OUTPUT_TOKENS = 0.01000   # ~$10.00 / 1M output tokens (estimate)
 
 # ── Feature flags ────────────────────────────────────────────────
 ENABLE_COST_TRANSPARENCY = True

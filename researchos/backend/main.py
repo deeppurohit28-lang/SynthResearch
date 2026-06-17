@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import google.generativeai as genai
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
@@ -7,6 +8,7 @@ from routes.run_routes import router as run_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    genai.configure(api_key=settings.GOOGLE_API_KEY)
     yield
 
 

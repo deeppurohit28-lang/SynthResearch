@@ -1,8 +1,15 @@
 import json
-import anthropic
+import google.generativeai as genai
 from config import settings
 from utils.prompt_loader import load_prompt
 from validators.report_validator import validate_report
+
+_SAFETY_SETTINGS = [
+    {"category": "HARM_CATEGORY_HARASSMENT",        "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH",        "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",  "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT",  "threshold": "BLOCK_NONE"},
+]
 
 
 def _extract_json(text: str) -> dict:
@@ -29,8 +36,12 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
         "output_tokens": int,
     }
     """
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     system_prompt = load_prompt("agent4_synthesis")
+    model = genai.GenerativeModel(
+        model_name=settings.AGENT4_MODEL,
+        system_instruction=system_prompt,
+        safety_settings=_SAFETY_SETTINGS,
+    )
 
     # Filter out excluded transcripts (user toggled at Gate 3)
     active_transcripts = [t for t in transcripts if not t.get("_excluded", False)]
@@ -61,20 +72,21 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
         if attempt > 0:
             prompt += f"\n\nPrevious attempt failed validation: {last_error}. Fix these issues and return valid JSON."
 
-        response = await client.messages.create(
-            model=settings.AGENT4_MODEL,
-            max_tokens=settings.AGENT4_MAX_TOKENS,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
+        response = await model.generate_content_async(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=settings.AGENT4_MAX_TOKENS,
+            ),
         )
 
+        meta = response.usage_metadata
         if settings.ENABLE_DEBUG_LOGGING:
             print(
                 f"[Agent 4] attempt={attempt+1} "
-                f"input={response.usage.input_tokens} output={response.usage.output_tokens}"
+                f"input={meta.prompt_token_count} output={meta.candidates_token_count}"
             )
 
-        raw = response.content[0].text
+        raw = response.text
 
         try:
             report = _extract_json(raw)
@@ -94,14 +106,14 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
 
         if not critical_errors:
             return {
-                "report":                   report,
-                "validation_warnings":      errors,
+                "report":                    report,
+                "validation_warnings":       errors,
                 "hallucination_check_passed": hallucination_results["quotes_failed"] == 0,
-                "quotes_verified":          hallucination_results["quotes_verified"],
-                "quotes_failed":            hallucination_results["quotes_failed"],
-                "tokens_used":              response.usage.input_tokens + response.usage.output_tokens,
-                "input_tokens":             response.usage.input_tokens,
-                "output_tokens":            response.usage.output_tokens,
+                "quotes_verified":           hallucination_results["quotes_verified"],
+                "quotes_failed":             hallucination_results["quotes_failed"],
+                "tokens_used":               meta.total_token_count,
+                "input_tokens":              meta.prompt_token_count,
+                "output_tokens":             meta.candidates_token_count,
             }
 
         last_error = "; ".join(critical_errors)
