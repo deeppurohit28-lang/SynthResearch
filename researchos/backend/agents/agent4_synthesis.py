@@ -35,10 +35,21 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
     # Filter out excluded transcripts (user toggled at Gate 3)
     active_transcripts = [t for t in transcripts if not t.get("_excluded", False)]
 
+    intended_count = intake.get("persona_count", len(active_transcripts))
+    partial_note = ""
+    if len(active_transcripts) < intended_count:
+        missing = intended_count - len(active_transcripts)
+        partial_note = (
+            f"\nNOTE: {missing} of {intended_count} persona interview(s) failed to simulate. "
+            f"Synthesise from the {len(active_transcripts)} available transcripts and acknowledge "
+            f"the incomplete data set in the confidence_disclaimer.\n"
+        )
+
     user_prompt = (
         f"Research goal: {intake['research_goal']}\n"
         f"Product description: {intake['product_description']}\n"
-        f"Persona count: {len(active_transcripts)}\n\n"
+        f"Persona count: {len(active_transcripts)}\n"
+        f"{partial_note}\n"
         f"Transcripts:\n{json.dumps(active_transcripts, indent=2)}\n\n"
         f"Complete all four synthesis steps and return the structured insight report as a JSON object."
     )

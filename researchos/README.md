@@ -31,9 +31,12 @@ uvicorn main:app --reload --port 8000
 | Method | Path | What it does |
 |--------|------|--------------|
 | POST | `/api/run/create` | Submit intake form, get run_id + cost estimate |
-| POST | `/api/run/{id}/personas` | Run Agent 1 — returns persona array |
+| POST | `/api/run/{id}/personas` | Run Agent 1 — returns full persona array |
+| POST | `/api/run/{id}/personas/regenerate` | Gate 1 — regenerate ONE persona card |
 | POST | `/api/run/{id}/guide` | Run Agent 2 — returns interview guide |
-| POST | `/api/run/{id}/simulate` | Run Agent 3 — returns transcripts (parallel) |
+| POST | `/api/run/{id}/guide/regenerate` | Gate 2 — regenerate ONE question |
+| POST | `/api/run/{id}/simulate` | Run Agent 3 — returns all transcripts (parallel) |
+| POST | `/api/run/{id}/simulate/regenerate` | Gate 3 — re-run ONE persona's interview |
 | POST | `/api/run/{id}/synthesise` | Run Agent 4 — returns insight report |
 | PATCH | `/api/run/{id}/behavior` | Track gate edit events (analytics) |
 

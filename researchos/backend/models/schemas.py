@@ -215,3 +215,15 @@ class SynthesiseRequest(BaseModel):
 
 class BehaviorRequest(BaseModel):
     event: BehaviorEvent
+
+class RegeneratePersonaRequest(BaseModel):
+    existing_personas: List[Persona]
+
+class RegenerateQuestionRequest(BaseModel):
+    personas: List[Persona]
+    existing_guide: InterviewGuide
+    question_id: str
+
+class RegenerateTranscriptRequest(BaseModel):
+    persona: Persona
+    guide: InterviewGuide

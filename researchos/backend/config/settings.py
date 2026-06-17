@@ -42,8 +42,8 @@ MIN_EVIDENCE_QUOTES_PER_THEME   = 2
 
 # ── Intake validation ────────────────────────────────────────────
 MIN_PRODUCT_DESCRIPTION_CHARS   = 50
-MIN_TARGET_USER_CHARS           = 20
-MIN_RESEARCH_GOAL_CHARS         = 20
+MIN_TARGET_USER_CHARS           = 30
+MIN_RESEARCH_GOAL_CHARS         = 30
 
 # ── Retry + timeout ──────────────────────────────────────────────
 MAX_RETRY_ATTEMPTS       = 2

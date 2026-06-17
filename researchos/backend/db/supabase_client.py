@@ -29,27 +29,30 @@ def update_run(run_id: str, updates: dict) -> None:
 
 # ── Convenience savers (called from routes after each agent) ─────
 
-def save_personas(run_id: str, personas: list, latency_ms: int) -> None:
+def save_personas(run_id: str, personas: list, latency_ms: int, cost_usd: float = 0.0) -> None:
     update_run(run_id, {
         "status": "persona_review",
         "persona_set": personas,
         "agent1_latency_ms": latency_ms,
+        "agent1_cost_usd": cost_usd,
     })
 
 
-def save_guide(run_id: str, guide: dict, latency_ms: int) -> None:
+def save_guide(run_id: str, guide: dict, latency_ms: int, cost_usd: float = 0.0) -> None:
     update_run(run_id, {
         "status": "guide_review",
         "interview_guide": guide,
         "agent2_latency_ms": latency_ms,
+        "agent2_cost_usd": cost_usd,
     })
 
 
-def save_transcripts(run_id: str, transcripts: list, latency_ms: int) -> None:
+def save_transcripts(run_id: str, transcripts: list, latency_ms: int, cost_usd: float = 0.0) -> None:
     update_run(run_id, {
         "status": "simulation_review",
         "transcript_set": transcripts,
         "agent3_latency_ms": latency_ms,
+        "agent3_cost_usd": cost_usd,
     })
 
 

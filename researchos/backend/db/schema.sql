@@ -48,6 +48,9 @@ CREATE TABLE runs (
   -- Performance metadata
   total_tokens      INTEGER,
   total_cost_usd    DECIMAL(8, 4),
+  agent1_cost_usd   DECIMAL(8, 4),
+  agent2_cost_usd   DECIMAL(8, 4),
+  agent3_cost_usd   DECIMAL(8, 4),
   agent1_latency_ms INTEGER,
   agent2_latency_ms INTEGER,
   agent3_latency_ms INTEGER,

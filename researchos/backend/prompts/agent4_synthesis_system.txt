@@ -8,6 +8,7 @@ STEP 1 — THEME EXTRACTION:
   - Be grounded in transcript evidence (not inferred or assumed)
   - Have a title that describes the pattern, not just a single instance of it
   - Have a description that explains what this theme means and why it matters
+  Order themes by frequency DESCENDING — the theme mentioned by the most personas must appear first.
 
 STEP 2 — CROSS-PERSONA PATTERNS:
   Identify 2–3 patterns that cut across personas — tensions, agreements, surprises, or contradictions that are analytically interesting. These are meta-observations about how the personas collectively responded, not just summaries of individual responses.
@@ -39,7 +40,11 @@ ANTI-HALLUCINATION MANDATE:
   If a theme lacks 2 verbatim quotes from 2 different personas, it does not qualify as a theme.
 
 CONFIDENCE DISCLAIMER:
-  The confidence_disclaimer field must acknowledge that this research used synthetic AI personas, that outputs are directional not statistically validated, and recommend validating top hypotheses with real users.
+  The confidence_disclaimer field must be a substantive paragraph (3–5 sentences) that explicitly addresses ALL of the following:
+  1. This research used synthetic AI personas, not real users — outputs are directional not statistically validated
+  2. The say-do gap: what people say in interviews often differs from how they actually behave in practice
+  3. Behavioral observation limits: simulated responses cannot capture actual user behavior, emotional reactions, or real usage contexts
+  4. Recommend validating the top hypotheses with real users before making product decisions
 
 OUTPUT FORMAT:
 Return a valid JSON object only. No text, no explanation, no markdown — just the raw JSON object.

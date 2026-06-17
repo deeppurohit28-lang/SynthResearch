@@ -42,6 +42,11 @@ def validate_report(report: dict, transcripts: list) -> tuple[list[str], dict]:
     if not (settings.MIN_THEMES <= len(themes) <= settings.MAX_THEMES):
         errors.append(f"Expected {settings.MIN_THEMES}–{settings.MAX_THEMES} themes, got {len(themes)}")
 
+    # Themes must be ordered by frequency descending (US-06)
+    freqs = [t.get("frequency", 0) for t in themes]
+    if freqs != sorted(freqs, reverse=True):
+        errors.append("themes must be ordered by frequency descending (most prevalent first)")
+
     for theme in themes:
         for field in _REQUIRED_THEME_FIELDS:
             if field not in theme:
@@ -113,6 +118,13 @@ def validate_report(report: dict, transcripts: list) -> tuple[list[str], dict]:
             f"got {len(recs)}"
         )
 
+    # Ranks must be sequential from 1 (US-08)
+    ranks = [rec.get("rank") for rec in recs if isinstance(rec.get("rank"), int)]
+    if ranks and ranks != list(range(1, len(ranks) + 1)):
+        errors.append(
+            f"recommendation ranks must be sequential from 1, got {ranks}"
+        )
+
     for rec in recs:
         for field in _REQUIRED_REC_FIELDS:
             if field not in rec:
@@ -124,8 +136,20 @@ def validate_report(report: dict, transcripts: list) -> tuple[list[str], dict]:
         if rec.get("effort", "") not in _VALID_EFFORT:
             errors.append(f"Recommendation {rec.get('rank', '?')}: invalid effort")
 
-    # ── Disclaimer ───────────────────────────────────────────────
-    if not report.get("confidence_disclaimer", "").strip():
+    # ── Disclaimer (US-10) ───────────────────────────────────────
+    disclaimer = report.get("confidence_disclaimer", "").strip()
+    if not disclaimer:
         errors.append("Missing confidence_disclaimer")
+    else:
+        # Must address all four required topics per US-10 acceptance criteria
+        required_topics = {
+            "say-do gap":               ["say-do", "say do"],
+            "statistical invalidity":   ["statistic"],
+            "behavioral observation":   ["behavioral", "behaviour", "behavior"],
+            "real user validation":     ["real user", "real people", "actual user"],
+        }
+        for topic, keywords in required_topics.items():
+            if not any(kw in disclaimer.lower() for kw in keywords):
+                errors.append(f"confidence_disclaimer must address '{topic}'")
 
     return errors, {"quotes_verified": quotes_verified, "quotes_failed": quotes_failed}

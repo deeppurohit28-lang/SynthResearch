@@ -73,51 +73,68 @@ def _build_all_questions_prompt(guide: dict) -> str:
 
 
 async def _simulate_persona(persona: dict, guide: dict, static_rules: str) -> dict:
-    """One bundled Claude call for a single persona covering all questions."""
+    """One bundled Claude call per persona, with retry on JSON parse failure (CC-01)."""
     client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    system_prompt = _build_persona_system_prompt(persona, static_rules)
-    user_prompt   = _build_all_questions_prompt(guide)
+    system_prompt   = _build_persona_system_prompt(persona, static_rules)
+    base_user_prompt = _build_all_questions_prompt(guide)
+    last_error: str = ""
 
-    response = await asyncio.wait_for(
-        client.messages.create(
-            model=settings.AGENT3_MODEL,
-            max_tokens=settings.AGENT3_MAX_TOKENS,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        ),
-        timeout=float(settings.AGENT3_TIMEOUT_SECONDS),
-    )
+    for attempt in range(settings.MAX_RETRY_ATTEMPTS + 1):
+        user_prompt = base_user_prompt
+        if attempt > 0:
+            user_prompt += f"\n\nPrevious attempt failed: {last_error}. Return ONLY a valid JSON array."
 
-    if settings.ENABLE_DEBUG_LOGGING:
-        print(
-            f"[Agent 3] {persona['name']} | "
-            f"input={response.usage.input_tokens} output={response.usage.output_tokens}"
+        response = await asyncio.wait_for(
+            client.messages.create(
+                model=settings.AGENT3_MODEL,
+                max_tokens=settings.AGENT3_MAX_TOKENS,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            ),
+            timeout=float(settings.AGENT3_TIMEOUT_SECONDS),
         )
 
-    raw = response.content[0].text
-    responses = _extract_json(raw)
+        if settings.ENABLE_DEBUG_LOGGING:
+            print(
+                f"[Agent 3] {persona['name']} attempt={attempt+1} | "
+                f"input={response.usage.input_tokens} output={response.usage.output_tokens}"
+            )
 
-    transcript = {
-        "persona_id":   persona["id"],
-        "persona_name": persona["name"],
-        "responses":    responses,
-    }
+        raw = response.content[0].text
 
-    # Correct quality flags based on actual word count
-    transcript = fix_quality_flags(transcript)
+        try:
+            responses = _extract_json(raw)
+        except (json.JSONDecodeError, ValueError) as e:
+            last_error = f"JSON parse error: {e}"
+            if attempt < settings.MAX_RETRY_ATTEMPTS:
+                continue
+            raise ValueError(f"transcript_generation_failed: {last_error}")
 
-    # Log validation warnings without failing the run
-    errors = validate_transcript(transcript)
-    if errors and settings.ENABLE_DEBUG_LOGGING:
-        print(f"[Agent 3] {persona['name']} warnings: {errors}")
+        transcript = {
+            "persona_id":   persona["id"],
+            "persona_name": persona["name"],
+            "responses":    responses,
+        }
 
-    return {
-        "transcript":    transcript,
-        "tokens_used":   response.usage.input_tokens + response.usage.output_tokens,
-        "input_tokens":  response.usage.input_tokens,
-        "output_tokens": response.usage.output_tokens,
-    }
+        # Correct quality flags based on actual word count
+        transcript = fix_quality_flags(transcript)
+
+        # Validate and attach warnings — character breaks surface to frontend (GAP-07)
+        errors = validate_transcript(transcript)
+        transcript["validation_warnings"] = errors
+
+        if settings.ENABLE_DEBUG_LOGGING and errors:
+            print(f"[Agent 3] {persona['name']} warnings: {errors}")
+
+        return {
+            "transcript":    transcript,
+            "tokens_used":   response.usage.input_tokens + response.usage.output_tokens,
+            "input_tokens":  response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+        }
+
+    raise ValueError("transcript_generation_failed: exhausted retries")
 
 
 async def run_agent3(personas: list, guide: dict) -> dict:
@@ -167,3 +184,9 @@ async def run_agent3(personas: list, guide: dict) -> dict:
         "input_tokens":      total_input,
         "output_tokens":     total_output,
     }
+
+
+async def simulate_one_persona(persona: dict, guide: dict) -> dict:
+    """Simulate a single persona — used by the Gate 3 regenerate transcript endpoint."""
+    static_rules = load_prompt("agent3_simulation")
+    return await _simulate_persona(persona, guide, static_rules)

@@ -10,6 +10,9 @@ from models.schemas import (
     SimulateRequest,
     SynthesiseRequest,
     BehaviorRequest,
+    RegeneratePersonaRequest,
+    RegenerateQuestionRequest,
+    RegenerateTranscriptRequest,
 )
 from agents import agent1_persona, agent2_guide, agent3_simulation, agent4_synthesis
 from db import supabase_client as db
@@ -71,7 +74,7 @@ async def generate_personas(run_id: str, request: PersonasRequest):
             is_haiku=_is_haiku(settings.AGENT1_MODEL),
         )
 
-        await asyncio.to_thread(db.save_personas, run_id, result["personas"], latency_ms)
+        await asyncio.to_thread(db.save_personas, run_id, result["personas"], latency_ms, cost_usd)
 
         return {
             "run_id": run_id,
@@ -112,7 +115,7 @@ async def generate_guide(run_id: str, request: GuideRequest):
             is_haiku=_is_haiku(settings.AGENT2_MODEL),
         )
 
-        await asyncio.to_thread(db.save_guide, run_id, result["guide"], latency_ms)
+        await asyncio.to_thread(db.save_guide, run_id, result["guide"], latency_ms, cost_usd)
 
         return {
             "run_id": run_id,
@@ -155,7 +158,7 @@ async def simulate_interviews(run_id: str, request: SimulateRequest):
             is_haiku=_is_haiku(settings.AGENT3_MODEL),
         )
 
-        await asyncio.to_thread(db.save_transcripts, run_id, result["transcripts"], latency_ms)
+        await asyncio.to_thread(db.save_transcripts, run_id, result["transcripts"], latency_ms, cost_usd)
 
         return {
             "run_id": run_id,
@@ -198,14 +201,21 @@ async def synthesise(run_id: str, request: SynthesiseRequest):
             is_haiku=_is_haiku(settings.AGENT4_MODEL),
         )
 
+        # Sort themes by frequency descending (US-06 — enforce even if model skips ordering)
+        report = result["report"]
+        if isinstance(report.get("themes"), list):
+            report["themes"] = sorted(
+                report["themes"], key=lambda t: t.get("frequency", 0), reverse=True
+            )
+
         await asyncio.to_thread(
-            db.save_report, run_id, result["report"], latency_ms, cost_usd
+            db.save_report, run_id, report, latency_ms, cost_usd
         )
 
         return {
             "run_id": run_id,
             "status": "complete",
-            "report": result["report"],
+            "report": report,
             "hallucination_check_passed": result["hallucination_check_passed"],
             "quotes_verified": result["quotes_verified"],
             "quotes_failed": result["quotes_failed"],
@@ -228,3 +238,124 @@ async def synthesise(run_id: str, request: SynthesiseRequest):
 async def track_behavior(run_id: str, request: BehaviorRequest):
     await asyncio.to_thread(db.increment_behavior, run_id, request.event.value)
     return {"ok": True}
+
+
+# ── POST /run/{run_id}/personas/regenerate ────────────────────────
+# Gate 1: regenerate a single persona card without touching the rest
+
+@router.post("/run/{run_id}/personas/regenerate")
+async def regenerate_persona(run_id: str, request: RegeneratePersonaRequest):
+    run = await asyncio.to_thread(db.get_run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    intake = run["intake"]
+    existing_personas_dict = [p.model_dump() for p in request.existing_personas]
+
+    try:
+        start = time.time()
+        result = await agent1_persona.regenerate_one_persona(intake, existing_personas_dict)
+        latency_ms = int((time.time() - start) * 1000)
+
+        cost_usd = calculate_cost(
+            result["input_tokens"],
+            result["output_tokens"],
+            is_haiku=_is_haiku(settings.AGENT1_MODEL),
+        )
+
+        return {
+            "run_id":      run_id,
+            "persona":     result["persona"],
+            "latency_ms":  latency_ms,
+            "tokens_used": result["tokens_used"],
+            "cost_usd":    cost_usd,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail={
+            "error":     "persona_regeneration_failed",
+            "message":   str(e),
+            "retryable": True,
+        })
+
+
+# ── POST /run/{run_id}/guide/regenerate ───────────────────────────
+# Gate 2: regenerate a single interview question
+
+@router.post("/run/{run_id}/guide/regenerate")
+async def regenerate_question(run_id: str, request: RegenerateQuestionRequest):
+    run = await asyncio.to_thread(db.get_run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    intake = run["intake"]
+    personas_dict = [p.model_dump() for p in request.personas]
+    guide_dict    = request.existing_guide.model_dump()
+
+    try:
+        start = time.time()
+        result = await agent2_guide.regenerate_one_question(
+            intake, personas_dict, guide_dict, request.question_id
+        )
+        latency_ms = int((time.time() - start) * 1000)
+
+        cost_usd = calculate_cost(
+            result["input_tokens"],
+            result["output_tokens"],
+            is_haiku=_is_haiku(settings.AGENT2_MODEL),
+        )
+
+        return {
+            "run_id":      run_id,
+            "question":    result["question"],
+            "latency_ms":  latency_ms,
+            "tokens_used": result["tokens_used"],
+            "cost_usd":    cost_usd,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail={
+            "error":     "question_regeneration_failed",
+            "message":   str(e),
+            "retryable": True,
+        })
+
+
+# ── POST /run/{run_id}/simulate/regenerate ────────────────────────
+# Gate 3: re-run simulation for a single persona transcript
+
+@router.post("/run/{run_id}/simulate/regenerate")
+async def regenerate_transcript(run_id: str, request: RegenerateTranscriptRequest):
+    run = await asyncio.to_thread(db.get_run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # research_goal intentionally NOT passed — demand characteristics prevention still applies
+    try:
+        start = time.time()
+        result = await agent3_simulation.simulate_one_persona(
+            request.persona.model_dump(),
+            request.guide.model_dump(),
+        )
+        latency_ms = int((time.time() - start) * 1000)
+
+        cost_usd = calculate_cost(
+            result["input_tokens"],
+            result["output_tokens"],
+            is_haiku=_is_haiku(settings.AGENT3_MODEL),
+        )
+
+        return {
+            "run_id":      run_id,
+            "transcript":  result["transcript"],
+            "latency_ms":  latency_ms,
+            "tokens_used": result["tokens_used"],
+            "cost_usd":    cost_usd,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={
+            "error":     "transcript_regeneration_failed",
+            "message":   str(e),
+            "retryable": True,
+        })
