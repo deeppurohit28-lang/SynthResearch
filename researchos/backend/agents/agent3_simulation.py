@@ -103,7 +103,6 @@ async def _simulate_persona(persona: dict, guide: dict, static_rules: str) -> di
             prompt=user_prompt,
             generation_config=genai.GenerationConfig(
                 max_output_tokens=settings.AGENT3_MAX_TOKENS,
-                response_mime_type="application/json",
             ),
             agent_name=f"Agent 3 ({persona['name']})"
         )
@@ -115,9 +114,8 @@ async def _simulate_persona(persona: dict, guide: dict, static_rules: str) -> di
                 f"input={meta.prompt_token_count} output={meta.candidates_token_count}"
             )
 
-        raw = response.text
-
         try:
+            raw = response.text
             responses = _extract_json(raw)
         except (json.JSONDecodeError, ValueError) as e:
             last_error = f"JSON parse error: {e}"
