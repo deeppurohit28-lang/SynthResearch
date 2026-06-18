@@ -2,6 +2,7 @@ import json
 import google.generativeai as genai
 from config import settings
 from utils.prompt_loader import load_prompt
+from utils.gemini_utils import generate_content_with_retry
 from validators.persona_validator import validate_personas
 
 _SAFETY_SETTINGS = [
@@ -50,11 +51,14 @@ async def run_agent1(intake: dict) -> dict:
         if attempt > 0:
             prompt += f"\n\nPrevious attempt failed validation: {last_error}. Fix these issues and return valid JSON."
 
-        response = await model.generate_content_async(
-            prompt,
+        response = await generate_content_with_retry(
+            model=model,
+            prompt=prompt,
             generation_config=genai.GenerationConfig(
                 max_output_tokens=settings.AGENT1_MAX_TOKENS,
+                response_mime_type="application/json",
             ),
+            agent_name="Agent 1"
         )
 
         if settings.ENABLE_DEBUG_LOGGING:
@@ -129,11 +133,14 @@ async def regenerate_one_persona(intake: dict, existing_personas: list) -> dict:
         if attempt > 0:
             prompt += f"\n\nPrevious attempt failed validation: {last_error}. Fix and return valid JSON."
 
-        response = await model.generate_content_async(
-            prompt,
+        response = await generate_content_with_retry(
+            model=model,
+            prompt=prompt,
             generation_config=genai.GenerationConfig(
                 max_output_tokens=settings.AGENT1_MAX_TOKENS,
+                response_mime_type="application/json",
             ),
+            agent_name="Agent 1 Regen"
         )
 
         if settings.ENABLE_DEBUG_LOGGING:

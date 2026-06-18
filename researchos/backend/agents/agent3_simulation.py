@@ -3,6 +3,7 @@ import asyncio
 import google.generativeai as genai
 from config import settings
 from utils.prompt_loader import load_prompt
+from utils.gemini_utils import generate_content_with_retry
 from validators.transcript_validator import validate_transcript, fix_quality_flags
 
 _SAFETY_SETTINGS = [
@@ -97,14 +98,14 @@ async def _simulate_persona(persona: dict, guide: dict, static_rules: str) -> di
         if attempt > 0:
             user_prompt += f"\n\nPrevious attempt failed: {last_error}. Return ONLY a valid JSON array."
 
-        response = await asyncio.wait_for(
-            model.generate_content_async(
-                user_prompt,
-                generation_config=genai.GenerationConfig(
-                    max_output_tokens=settings.AGENT3_MAX_TOKENS,
-                ),
+        response = await generate_content_with_retry(
+            model=model,
+            prompt=user_prompt,
+            generation_config=genai.GenerationConfig(
+                max_output_tokens=settings.AGENT3_MAX_TOKENS,
+                response_mime_type="application/json",
             ),
-            timeout=float(settings.AGENT3_TIMEOUT_SECONDS),
+            agent_name=f"Agent 3 ({persona['name']})"
         )
 
         meta = response.usage_metadata
