@@ -11,10 +11,10 @@ ENVIRONMENT          = os.getenv("ENVIRONMENT", "development")
 FRONTEND_URL         = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 # ── Model selection per agent ────────────────────────────────────
-AGENT1_MODEL = "gemini-3.1-pro-preview"   # persona generation
-AGENT2_MODEL = "gemini-3.1-pro-preview"   # interview guide
-AGENT3_MODEL = "gemini-3.1-pro-preview"   # simulation — one bundled call per persona
-AGENT4_MODEL = "gemini-3.1-pro-preview"   # synthesis — highest value output
+AGENT1_MODEL = "gemini-3.0-flash"   # persona generation
+AGENT2_MODEL = "gemini-3.0-flash"   # interview guide
+AGENT3_MODEL = "gemini-3.0-flash"   # simulation — one bundled call per persona
+AGENT4_MODEL = "gemini-3.0-flash"   # synthesis — highest value output
 
 # ── Max tokens per agent ─────────────────────────────────────────
 AGENT1_MAX_TOKENS = 4096
@@ -45,9 +45,8 @@ MIN_PRODUCT_DESCRIPTION_CHARS   = 50
 MIN_TARGET_USER_CHARS           = 30
 MIN_RESEARCH_GOAL_CHARS         = 30
 
-# ── Retry + timeout ──────────────────────────────────────────────
+# ── Retry ────────────────────────────────────────────────────────
 MAX_RETRY_ATTEMPTS       = 2
-AGENT3_TIMEOUT_SECONDS   = 90
 
 # ── Cost estimation (for pre-run display) ────────────────────────
 # Gemini 3.1 Pro Preview pricing — verify at ai.google.dev/pricing before deploy
