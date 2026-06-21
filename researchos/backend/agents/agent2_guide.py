@@ -68,16 +68,12 @@ async def run_agent2(intake: dict, personas: list) -> dict:
                 max_output_tokens=settings.AGENT2_MAX_TOKENS,
                 response_mime_type="application/json",
             ),
-            agent_name="Agent 2"
+            agent_name="Agent 2",
+            model_name=settings.AGENT2_MODEL,
         )
 
-        if settings.ENABLE_DEBUG_LOGGING:
-            meta = response.usage_metadata
-            print(f"[Agent 2] attempt={attempt+1} input={meta.prompt_token_count} output={meta.candidates_token_count}")
-
-        raw = response.text
-
         try:
+            raw = response.text
             guide = _extract_json(raw)
         except (json.JSONDecodeError, ValueError) as e:
             last_error = f"JSON parse error: {e}"
@@ -85,13 +81,16 @@ async def run_agent2(intake: dict, personas: list) -> dict:
                 continue
             raise ValueError(f"guide_generation_failed: {last_error}")
 
+        meta = response.usage_metadata
+        if settings.ENABLE_DEBUG_LOGGING:
+            print(f"[Agent 2] attempt={attempt+1} input={meta.prompt_token_count} output={meta.candidates_token_count}")
+
         errors = validate_guide(guide, intake["question_count"])
 
         if settings.ENABLE_DEBUG_LOGGING and errors:
             print(f"[Agent 2] validation errors: {errors}")
 
         if not errors:
-            meta = response.usage_metadata
             return {
                 "guide":         guide,
                 "tokens_used":   meta.total_token_count,
@@ -158,16 +157,12 @@ async def regenerate_one_question(
                 max_output_tokens=settings.AGENT2_MAX_TOKENS,
                 response_mime_type="application/json",
             ),
-            agent_name="Agent 2 Regen"
+            agent_name="Agent 2 Regen",
+            model_name=settings.AGENT2_MODEL,
         )
 
-        if settings.ENABLE_DEBUG_LOGGING:
-            meta = response.usage_metadata
-            print(f"[Agent 2 regen] attempt={attempt+1} input={meta.prompt_token_count}")
-
-        raw = response.text
-
         try:
+            raw = response.text
             result = _extract_json(raw)
             questions = result if isinstance(result, list) else [result]
         except (json.JSONDecodeError, ValueError) as e:
@@ -182,13 +177,16 @@ async def regenerate_one_question(
                 continue
             raise ValueError(f"question_regeneration_failed: {last_error}")
 
+        meta = response.usage_metadata
+        if settings.ENABLE_DEBUG_LOGGING:
+            print(f"[Agent 2 regen] attempt={attempt+1} input={meta.prompt_token_count}")
+
         q = questions[0]
         missing = [f for f in ["id", "question", "intent", "follow_up_probes"] if not q.get(f)]
         if not missing:
             if not isinstance(q.get("follow_up_probes"), list) or len(q["follow_up_probes"]) < 2:
                 last_error = "follow_up_probes must have at least 2 items"
             else:
-                meta = response.usage_metadata
                 return {
                     "question":      q,
                     "tokens_used":   meta.total_token_count,

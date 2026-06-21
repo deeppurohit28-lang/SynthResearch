@@ -80,8 +80,18 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
                 max_output_tokens=settings.AGENT4_MAX_TOKENS,
                 response_mime_type="application/json",
             ),
-            agent_name="Agent 4"
+            agent_name="Agent 4",
+            model_name=settings.AGENT4_MODEL,
         )
+
+        try:
+            raw = response.text
+            report = _extract_json(raw)
+        except (json.JSONDecodeError, ValueError) as e:
+            last_error = f"JSON parse error: {e}"
+            if attempt < settings.MAX_RETRY_ATTEMPTS:
+                continue
+            raise ValueError(f"synthesis_failed: {last_error}")
 
         meta = response.usage_metadata
         if settings.ENABLE_DEBUG_LOGGING:
@@ -89,16 +99,6 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
                 f"[Agent 4] attempt={attempt+1} "
                 f"input={meta.prompt_token_count} output={meta.candidates_token_count}"
             )
-
-        raw = response.text
-
-        try:
-            report = _extract_json(raw)
-        except (json.JSONDecodeError, ValueError) as e:
-            last_error = f"JSON parse error: {e}"
-            if attempt < settings.MAX_RETRY_ATTEMPTS:
-                continue
-            raise ValueError(f"synthesis_failed: {last_error}")
 
         errors, hallucination_results = validate_report(report, active_transcripts)
 

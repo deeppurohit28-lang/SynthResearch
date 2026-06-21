@@ -58,16 +58,12 @@ async def run_agent1(intake: dict) -> dict:
                 max_output_tokens=settings.AGENT1_MAX_TOKENS,
                 response_mime_type="application/json",
             ),
-            agent_name="Agent 1"
+            agent_name="Agent 1",
+            model_name=settings.AGENT1_MODEL,
         )
 
-        if settings.ENABLE_DEBUG_LOGGING:
-            meta = response.usage_metadata
-            print(f"[Agent 1] attempt={attempt+1} input={meta.prompt_token_count} output={meta.candidates_token_count}")
-
-        raw = response.text
-
         try:
+            raw = response.text
             personas = _extract_json(raw)
         except (json.JSONDecodeError, ValueError) as e:
             last_error = f"JSON parse error: {e}"
@@ -75,13 +71,16 @@ async def run_agent1(intake: dict) -> dict:
                 continue
             raise ValueError(f"persona_generation_failed: {last_error}")
 
+        meta = response.usage_metadata
+        if settings.ENABLE_DEBUG_LOGGING:
+            print(f"[Agent 1] attempt={attempt+1} input={meta.prompt_token_count} output={meta.candidates_token_count}")
+
         errors = validate_personas(personas, intake["persona_count"])
 
         if settings.ENABLE_DEBUG_LOGGING and errors:
             print(f"[Agent 1] validation errors: {errors}")
 
         if not errors:
-            meta = response.usage_metadata
             return {
                 "personas":      personas,
                 "tokens_used":   meta.total_token_count,
@@ -140,16 +139,12 @@ async def regenerate_one_persona(intake: dict, existing_personas: list) -> dict:
                 max_output_tokens=settings.AGENT1_MAX_TOKENS,
                 response_mime_type="application/json",
             ),
-            agent_name="Agent 1 Regen"
+            agent_name="Agent 1 Regen",
+            model_name=settings.AGENT1_MODEL,
         )
 
-        if settings.ENABLE_DEBUG_LOGGING:
-            meta = response.usage_metadata
-            print(f"[Agent 1 regen] attempt={attempt+1} input={meta.prompt_token_count}")
-
-        raw = response.text
-
         try:
+            raw = response.text
             result = _extract_json(raw)
             personas = result if isinstance(result, list) else [result]
         except (json.JSONDecodeError, ValueError) as e:
@@ -164,9 +159,12 @@ async def regenerate_one_persona(intake: dict, existing_personas: list) -> dict:
                 continue
             raise ValueError(f"persona_regeneration_failed: {last_error}")
 
+        meta = response.usage_metadata
+        if settings.ENABLE_DEBUG_LOGGING:
+            print(f"[Agent 1 regen] attempt={attempt+1} input={meta.prompt_token_count}")
+
         errors = validate_personas(personas, 1)
         if not errors:
-            meta = response.usage_metadata
             return {
                 "persona":       personas[0],
                 "tokens_used":   meta.total_token_count,

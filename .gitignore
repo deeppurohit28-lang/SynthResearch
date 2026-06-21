@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.env
+
+# Logs / scratch
+raw_response.txt
+lint_output.txt
+
+# Claude Code session files
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

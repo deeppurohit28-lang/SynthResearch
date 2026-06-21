@@ -104,15 +104,9 @@ async def _simulate_persona(persona: dict, guide: dict, static_rules: str) -> di
             generation_config=genai.GenerationConfig(
                 max_output_tokens=settings.AGENT3_MAX_TOKENS,
             ),
-            agent_name=f"Agent 3 ({persona['name']})"
+            agent_name=f"Agent 3 ({persona['name']})",
+            model_name=settings.AGENT3_MODEL,
         )
-
-        meta = response.usage_metadata
-        if settings.ENABLE_DEBUG_LOGGING:
-            print(
-                f"[Agent 3] {persona['name']} attempt={attempt+1} | "
-                f"input={meta.prompt_token_count} output={meta.candidates_token_count}"
-            )
 
         try:
             raw = response.text
@@ -123,16 +117,21 @@ async def _simulate_persona(persona: dict, guide: dict, static_rules: str) -> di
                 continue
             raise ValueError(f"transcript_generation_failed: {last_error}")
 
+        meta = response.usage_metadata
+        if settings.ENABLE_DEBUG_LOGGING:
+            print(
+                f"[Agent 3] {persona['name']} attempt={attempt+1} | "
+                f"input={meta.prompt_token_count} output={meta.candidates_token_count}"
+            )
+
         transcript = {
             "persona_id":   persona["id"],
             "persona_name": persona["name"],
             "responses":    responses,
         }
 
-        # Correct quality flags based on actual word count
         transcript = fix_quality_flags(transcript)
 
-        # Validate and attach warnings — character breaks surface to frontend (GAP-07)
         errors = validate_transcript(transcript)
         transcript["validation_warnings"] = errors
 
