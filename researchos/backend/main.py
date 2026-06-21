@@ -46,8 +46,7 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
                     }
                 }
             )
-            response.headers["Access-Control-Allow-Origin"] = settings.FRONTEND_URL
-            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Methods"] = "*"
             response.headers["Access-Control-Allow-Headers"] = "*"
             return response
@@ -57,8 +56,8 @@ app.add_middleware(ExceptionHandlerMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
