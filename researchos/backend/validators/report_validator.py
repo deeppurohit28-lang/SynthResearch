@@ -136,20 +136,9 @@ def validate_report(report: dict, transcripts: list) -> tuple[list[str], dict]:
         if rec.get("effort", "") not in _VALID_EFFORT:
             errors.append(f"Recommendation {rec.get('rank', '?')}: invalid effort")
 
-    # ── Disclaimer (US-10) ───────────────────────────────────────
+    # ── Disclaimer ───────────────────────────────────────────────
     disclaimer = report.get("confidence_disclaimer", "").strip()
     if not disclaimer:
         errors.append("Missing confidence_disclaimer")
-    else:
-        # Must address all four required topics per US-10 acceptance criteria
-        required_topics = {
-            "say-do gap":               ["say-do", "say do"],
-            "statistical invalidity":   ["statistic"],
-            "behavioral observation":   ["behavioral", "behaviour", "behavior"],
-            "real user validation":     ["real user", "real people", "actual user"],
-        }
-        for topic, keywords in required_topics.items():
-            if not any(kw in disclaimer.lower() for kw in keywords):
-                errors.append(f"confidence_disclaimer must address '{topic}'")
 
     return errors, {"quotes_verified": quotes_verified, "quotes_failed": quotes_failed}

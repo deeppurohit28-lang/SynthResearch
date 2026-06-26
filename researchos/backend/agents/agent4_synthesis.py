@@ -5,6 +5,17 @@ from utils.prompt_loader import load_prompt
 from utils.gemini_utils import generate_content_with_retry
 from validators.report_validator import validate_report
 
+_CONFIDENCE_DISCLAIMER = (
+    "This report was generated using synthetic AI personas, not real users. "
+    "Findings are directional and not statistically validated — they reflect "
+    "model-generated responses, not actual human behavior. "
+    "The say-do gap applies: what people say in interviews often differs from "
+    "how they actually behave in practice. "
+    "Simulated responses cannot capture real user emotions, behavioral context, "
+    "or actual usage patterns. "
+    "Validate the top hypotheses with real users before making product decisions."
+)
+
 _SAFETY_SETTINGS = [
     {"category": "HARM_CATEGORY_HARASSMENT",        "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH",        "threshold": "BLOCK_NONE"},
@@ -53,8 +64,7 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
         missing = intended_count - len(active_transcripts)
         partial_note = (
             f"\nNOTE: {missing} of {intended_count} persona interview(s) failed to simulate. "
-            f"Synthesise from the {len(active_transcripts)} available transcripts and acknowledge "
-            f"the incomplete data set in the confidence_disclaimer.\n"
+            f"Synthesise from the {len(active_transcripts)} available transcripts only.\n"
         )
 
     user_prompt = (
@@ -87,6 +97,7 @@ async def run_agent4(transcripts: list, intake: dict) -> dict:
         try:
             raw = response.text
             report = _extract_json(raw)
+            report["confidence_disclaimer"] = _CONFIDENCE_DISCLAIMER
         except (json.JSONDecodeError, ValueError) as e:
             last_error = f"JSON parse error: {e}"
             if attempt < settings.MAX_RETRY_ATTEMPTS:

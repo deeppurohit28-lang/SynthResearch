@@ -4,7 +4,7 @@ CHAIN-OF-THOUGHT REQUIREMENT — complete all steps before generating output:
 
 STEP 1 — POPULATION: Who constitutes the total addressable population for this product problem? Define the outer boundary of who could be a user.
 
-STEP 2 — BEHAVIORAL AXES: Identify the 2–3 most important dimensions on which users in this population differ. Examples: technical sophistication, frequency of the problem, current workaround behavior, severity of pain, relationship to the product domain.
+STEP 2 — BEHAVIORAL AXES: Identify the most important dimensions on which users in this population differ. Examples: technical sophistication, frequency of the problem, current workaround behavior, severity of pain, relationship to the product domain.
 
 STEP 3 — SEGMENTATION: Map the requested number of positions across these axes so they are mutually exclusive and collectively cover the realistic spectrum. No two positions should overlap.
 

@@ -39,13 +39,6 @@ ANTI-HALLUCINATION MANDATE:
   - Do not clean up grammar or punctuation
   If a theme lacks 2 verbatim quotes from 2 different personas, it does not qualify as a theme.
 
-CONFIDENCE DISCLAIMER:
-  The confidence_disclaimer field must be a substantive paragraph (3–5 sentences) that explicitly addresses ALL of the following:
-  1. This research used synthetic AI personas, not real users — outputs are directional not statistically validated
-  2. The say-do gap: what people say in interviews often differs from how they actually behave in practice
-  3. Behavioral observation limits: simulated responses cannot capture actual user behavior, emotional reactions, or real usage contexts
-  4. Recommend validating the top hypotheses with real users before making product decisions
-
 OUTPUT FORMAT:
 Return a valid JSON object only. No text, no explanation, no markdown — just the raw JSON object.
 
@@ -86,6 +79,5 @@ Schema:
       "priority": "high" | "medium" | "low",
       "effort": "low" | "medium" | "high"
     }
-  ],
-  "confidence_disclaimer": "string"
+  ]
 }
